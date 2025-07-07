@@ -3,54 +3,84 @@ from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 
 def check_venv():
+    if getattr(sys, 'frozen', False):
+        return
     script_dir = Path(__file__).parent
     venv_path = script_dir / ".venv312"
-    if venv_path.exists() and (venv_path / "Scripts" / "pythonw.exe").exists():
-        venv_python = str(venv_path / "Scripts" / "pythonw.exe")
-        if sys.executable != venv_python:
-            print(f"Switching to virtual environment: {venv_python}")
+    if venv_path.exists():
+        venv_pythonw = venv_path / "Scripts" / "pythonw.exe"
+        if venv_pythonw.exists() and sys.executable != str(venv_pythonw):
             import subprocess
-            subprocess.run([venv_python, __file__] + sys.argv[1:])
+            subprocess.run([str(venv_pythonw), __file__] + sys.argv[1:])
             sys.exit(0)
 
-if not getattr(sys, 'frozen', False):
-    check_venv()
+check_venv()
 
-try:
-    import numpy as np
-except ImportError:
-    messagebox.showerror("Missing Library", "NumPy is not installed. Please install it with: pip install numpy")
-    sys.exit(1)
+def import_numpy():
+    try:
+        import numpy as np
+        return np
+    except ImportError:
+        messagebox.showerror("Missing Library", "NumPy is not installed. Please install it with: pip install numpy")
+        sys.exit(1)
 
-try:
-    from PIL import Image, UnidentifiedImageError
-except ImportError:
-    messagebox.showerror("Missing Library", "Pillow is not installed. Please install it with: pip install pillow")
-    sys.exit(1)
+def import_pil():
+    try:
+        from PIL import Image, UnidentifiedImageError
+        return Image, UnidentifiedImageError
+    except ImportError:
+        messagebox.showerror("Missing Library", "Pillow is not installed. Please install it with: pip install pillow")
+        sys.exit(1)
 
 class PNGPremultApp:
     def __init__(self, root):
         self.root = root
         self.root.title("PNG Alpha Premultiplication Tool")
         self.root.geometry("600x500")
-        base_dir = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
-        icon_path = base_dir / 'icon.ico'
-        if icon_path.exists():
-            try:
-                self.root.iconbitmap(str(icon_path))
-            except tk.TclError:
-                print(f"Warning: Could not set icon from {icon_path}")
-        else:
-            print(f"Warning: Icon file not found at {icon_path}")
+        
+        self._setup_icon()
+        
         self.files = []
         self.dir = None
         self.output_dir = None
         self.overwrite = tk.BooleanVar(value=False)
         self.busy = False
         self.progress = tk.DoubleVar()
+        
+        self.np = None
+        self.Image = None
+        self.UnidentifiedImageError = None
+        
         self.build_ui()
         self.overwrite.trace_add('write', lambda *_: self.set_output_disp())
         self.update_process_button_state()
+
+    def _setup_icon(self):
+        icon_paths = []
+        
+        if getattr(sys, 'frozen', False):
+            base_dir = Path(sys.executable).parent
+            icon_paths.append(base_dir / 'icon.ico')
+        
+        script_dir = Path(__file__).parent if '__file__' in globals() else Path.cwd()
+        icon_paths.extend([
+            script_dir / 'icon.ico',
+            script_dir / 'assets' / 'icon.ico'
+        ])
+        
+        for icon_path in icon_paths:
+            if icon_path.exists():
+                try:
+                    self.root.iconbitmap(str(icon_path))
+                    break
+                except tk.TclError:
+                    continue
+
+    def _ensure_libraries(self):
+        if self.np is None:
+            self.np = import_numpy()
+        if self.Image is None:
+            self.Image, self.UnidentifiedImageError = import_pil()
 
     def build_ui(self):
         f = ttk.Frame(self.root, padding=10)
@@ -192,11 +222,11 @@ class PNGPremultApp:
 
     def premult(self, img):
         img = img.convert("RGBA")
-        arr = np.array(img, dtype=np.float32)
+        arr = self.np.array(img, dtype=self.np.float32)
         alpha = arr[:, :, 3:4] / 255.0
         arr[:, :, :3] *= alpha
-        arr = np.clip(arr, 0, 255).astype(np.uint8)
-        return Image.fromarray(arr)
+        arr = self.np.clip(arr, 0, 255).astype(self.np.uint8)
+        return self.Image.fromarray(arr)
 
     def out_path(self, file_path):
         input_path = Path(file_path)
@@ -210,7 +240,7 @@ class PNGPremultApp:
 
     def proc_one(self, file_path):
         try:
-            with Image.open(file_path) as img:
+            with self.Image.open(file_path) as img:
                 if img.format != 'PNG':
                     self.log(f"✗ Error processing {Path(file_path).name}: Not a PNG image.")
                     return False
@@ -219,7 +249,7 @@ class PNGPremultApp:
                 oimg.save(opath)
                 self.log(f"✓ Processed: {Path(file_path).name}")
                 return True
-        except UnidentifiedImageError:
+        except self.UnidentifiedImageError:
             self.log(f"✗ Error processing {Path(file_path).name}: Could not identify image file. It might be corrupted or not an image.")
             return False
         except Exception as e:
@@ -231,6 +261,9 @@ class PNGPremultApp:
             self.busy = True
             self.b_proc.config(state="disabled")
             self.progress.set(0)
+            
+            self._ensure_libraries()
+            
             if self.files:
                 fs = self.files
             elif self.dir:

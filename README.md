@@ -28,8 +28,8 @@ Inside the `png-premult-gui` folder, you have several options:
   - Windows Defender might flag and quarantine it.
 
 > [!IMPORTANT]  
-> Step 2 & 3 require you to have **Python 3.12.x** installed.  
-> Download Python on [python.org](https://www.python.org/downloads/)
+> The following steps require you to have **Python 3.12.x** installed. [Download Python](https://www.python.org/downloads/)
+> Building your own executable requires a compiler. [Read more](https://nuitka.net/user-documentation/user-manual.html#c-compiler)
 
 ### Option 2: Isolated Python Environment
 
@@ -39,10 +39,8 @@ Inside the `png-premult-gui` folder, you have several options:
 
 ### Option 3: System-wide Installation
 
-- **Run directly:** Run `png-premult-gui.pyw`
-  - Requires: `pip install numpy pillow`
-- **Build your own executable:** Run `build-exe.bat`
-  - Requires: `pip install numpy pillow nuitka`
+- **To run `png-premult-gui.pyw`** install required packages with `pip install numpy pillow`
+- **To build a executable with `build-exe.bat`** install required packages with `pip install numpy pillow nuitka`
 
 In your lua code, simply wrap your image drawing with `ui.beginPremultipliedAlphaTexture()` and `ui.endPremultipliedAlphaTexture()` when using the converted image:
 
