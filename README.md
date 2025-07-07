@@ -2,6 +2,8 @@
 
 A simple utility to apply alpha premultiplication to PNG files.
 
+![](./.github/img/tool.png)
+
 ## Why?
 
 When scaling images, ImGui (used by CSP) applies linear filtering, which blends neighboring pixels.  
@@ -23,23 +25,24 @@ Inside the `png-premult-gui` folder, you have several options:
 
 - **Launch `png-premult-gui.exe`**
   - Ready to use immediately but requires trusting my unsigned executable.
+  - Windows Defender might flag and quarantine it.
 
 > [!IMPORTANT]  
-> Step 2 & 3 require you to have Python 3.12.x installed.  
+> Step 2 & 3 require you to have **Python 3.12.x** installed.  
 > Download Python on [python.org](https://www.python.org/downloads/)
 
-### Option 2: System-wide Installation
+### Option 2: Isolated Python Environment
+
+- **Run `setup-venv.bat`** to create a Python environment.
+  - Automatically sets up a environment with all required packages for you.
+  - After setup, you can run `png-premult-gui.pyw` or build a executable with `build-exe.bat`
+
+### Option 3: System-wide Installation
 
 - **Run directly:** Run `png-premult-gui.pyw`
   - Requires: `pip install numpy pillow`
 - **Build your own executable:** Run `build-exe.bat`
   - Requires: `pip install numpy pillow nuitka`
-
-### Option 3: Isolated Python Environment
-
-- **Run `setup-venv.bat`** to create a Python environment.
-  - Automatically sets up a environment with all required packages for you.
-  - After setup, you can run `png-premult-gui.pyw` or build a executable with `build-exe.bat`
 
 In your lua code, simply wrap your image drawing with `ui.beginPremultipliedAlphaTexture()` and `ui.endPremultipliedAlphaTexture()` when using the converted image:
 

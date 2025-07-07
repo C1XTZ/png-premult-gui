@@ -5,8 +5,8 @@ from pathlib import Path
 def check_venv():
     script_dir = Path(__file__).parent
     venv_path = script_dir / ".venv312"
-    if venv_path.exists() and (venv_path / "Scripts" / "python.exe").exists():
-        venv_python = str(venv_path / "Scripts" / "python.exe")
+    if venv_path.exists() and (venv_path / "Scripts" / "pythonw.exe").exists():
+        venv_python = str(venv_path / "Scripts" / "pythonw.exe")
         if sys.executable != venv_python:
             print(f"Switching to virtual environment: {venv_python}")
             import subprocess
