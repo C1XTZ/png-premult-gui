@@ -2,26 +2,33 @@
 set SCRIPT_NAME=png-premult-gui
 set EXE_NAME=%SCRIPT_NAME%.exe
 
+echo Activating virtual environment...
+call .\.venv312\Scripts\activate.bat
+
 echo Cleaning previous build...
-pyinstaller --clean "%SCRIPT_NAME%.pyw"
+IF EXIST "%SCRIPT_NAME%.build" RMDIR /S /Q "%SCRIPT_NAME%.build"
+IF EXIST "%SCRIPT_NAME%.dist" RMDIR /S /Q "%SCRIPT_NAME%.dist"
+IF EXIST "%SCRIPT_NAME%.onefile-build" RMDIR /S /Q "%SCRIPT_NAME%.onefile-build"
+IF EXIST "%EXE_NAME%" DEL /Q "%EXE_NAME%"
 
-echo Building %EXE_NAME%...
-pyinstaller --onefile --windowed --icon=icon.ico --add-data "icon.ico:." "%SCRIPT_NAME%.pyw"
+echo Building %EXE_NAME% with Nuitka...
+call nuitka ^
+    "%SCRIPT_NAME%.pyw" ^
+    --onefile ^
+    --windows-icon-from-ico=icon.ico ^
+    --windows-console-mode=disable ^
+    --enable-plugin=tk-inter ^
+    --include-data-file=icon.ico=icon.ico
 
-echo Moving executable and cleaning up...
-IF EXIST "dist\%EXE_NAME%" (
-    MOVE "dist\%EXE_NAME%" "%EXE_NAME%"
-    ECHO %EXE_NAME% moved to current directory.
-) ELSE (
-    ECHO Error: %EXE_NAME% not found in dist.
-)
+echo Nuitka finished with errorlevel %ERRORLEVEL%.
 
-RMDIR /S /Q build
-RMDIR /S /Q dist
-DEL /Q "%SCRIPT_NAME%.spec"
+echo Cleaning up build folders...
+IF EXIST "%SCRIPT_NAME%.build" RMDIR /S /Q "%SCRIPT_NAME%.build"
+IF EXIST "%SCRIPT_NAME%.dist" RMDIR /S /Q "%SCRIPT_NAME%.dist"
+IF EXIST "%SCRIPT_NAME%.onefile-build" RMDIR /S /Q "%SCRIPT_NAME%.onefile-build"
 
-echo Build process complete.
 echo.
-echo Note: Windows Defender might briefly scan, flag or lock the newly built executable.
-echo This is normal behavior for new or unsigned applications.
+echo Build complete.
+echo Note: Windows Defender might flag and quarantine the built executable.
+echo.
 pause

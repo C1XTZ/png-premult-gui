@@ -17,17 +17,29 @@ To use the app, move the `pre-mult-test` folder to your `/assettocorsa/apps/lua`
 
 Download the repository [here](https://github.com/C1XTZ/png-premult-gui/archive/refs/heads/main.zip) and unzip it.
 
-Inside the `png-premult-gui` folder, you have two ways to run it:
+Inside the `png-premult-gui` folder, you have several options:
 
-- **Prebuilt Executable:** Launch `png-premult-gui.exe`
-  - Requires trusting a random unsigned `.exe` from the internet.
-- **Python Script:** Run `png-premult-gui.pyw`
-  - Requires Python and the Pillow library; install via `pip install pillow`
+### Option 1: Prebuilt Executable
 
-> [!IMPORTANT]
-> I recommend using the `png-premult-gui.pyw` if possible or compiling the executable yourself.  
-> To build the executable, run `build-exe.bat`  
-> Requires Python and the Pillow and PyInstaller libraries; install via `pip install pillow pyinstaller`
+- **Launch `png-premult-gui.exe`**
+  - Ready to use immediately but requires trusting my unsigned executable.
+
+> [!IMPORTANT]  
+> Step 2 & 3 require you to have Python 3.12.x installed.  
+> Download Python on [python.org](https://www.python.org/downloads/)
+
+### Option 2: System-wide Installation
+
+- **Run directly:** Run `png-premult-gui.pyw`
+  - Requires: `pip install numpy pillow`
+- **Build your own executable:** Run `build-exe.bat`
+  - Requires: `pip install numpy pillow nuitka`
+
+### Option 3: Isolated Python Environment
+
+- **Run `setup-venv.bat`** to create a Python environment.
+  - Automatically sets up a environment with all required packages for you.
+  - After setup, you can run `png-premult-gui.pyw` or build a executable with `build-exe.bat`
 
 In your lua code, simply wrap your image drawing with `ui.beginPremultipliedAlphaTexture()` and `ui.endPremultipliedAlphaTexture()` when using the converted image:
 

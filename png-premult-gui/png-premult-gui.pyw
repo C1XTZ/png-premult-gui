@@ -1,7 +1,26 @@
-import sys, os, threading, tkinter as tk
+import sys, threading, tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
-import numpy as np
+
+def check_venv():
+    script_dir = Path(__file__).parent
+    venv_path = script_dir / ".venv312"
+    if venv_path.exists() and (venv_path / "Scripts" / "python.exe").exists():
+        venv_python = str(venv_path / "Scripts" / "python.exe")
+        if sys.executable != venv_python:
+            print(f"Switching to virtual environment: {venv_python}")
+            import subprocess
+            subprocess.run([venv_python, __file__] + sys.argv[1:])
+            sys.exit(0)
+
+if not getattr(sys, 'frozen', False):
+    check_venv()
+
+try:
+    import numpy as np
+except ImportError:
+    messagebox.showerror("Missing Library", "NumPy is not installed. Please install it with: pip install numpy")
+    sys.exit(1)
 
 try:
     from PIL import Image, UnidentifiedImageError
@@ -14,13 +33,18 @@ class PNGPremultApp:
         self.root = root
         self.root.title("PNG Alpha Premultiplication Tool")
         self.root.geometry("600x500")
-        icon_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
-        icon_path = os.path.join(icon_dir, 'icon.ico')
-        if os.path.exists(icon_path):
-            self.root.iconbitmap(icon_path)
+        base_dir = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
+        icon_path = base_dir / 'icon.ico'
+        if icon_path.exists():
+            try:
+                self.root.iconbitmap(str(icon_path))
+            except tk.TclError:
+                print(f"Warning: Could not set icon from {icon_path}")
+        else:
+            print(f"Warning: Icon file not found at {icon_path}")
         self.files = []
-        self.dir = ""
-        self.output_dir = ""
+        self.dir = None
+        self.output_dir = None
         self.overwrite = tk.BooleanVar(value=False)
         self.busy = False
         self.progress = tk.DoubleVar()
@@ -84,27 +108,27 @@ class PNGPremultApp:
 
     def set_output_disp(self):
         ovr = self.overwrite.get()
-        src = ""
+        src = None
         if ovr:
             if self.files:
-                src = os.path.dirname(self.files[0])
+                src = Path(self.files[0]).parent
             elif self.dir:
                 src = self.dir
             self.b_out.config(state="disabled")
             if src:
-                txt = f"{Path(src).resolve().as_posix()} (Overwriting original images)"
+                txt = f"{src.resolve().as_posix()} (Overwriting original images)"
             else:
                 txt = "Please select an input first (Overwriting original images)"
         else:
             self.b_out.config(state="normal")
             d = self.output_dir
             if d:
-                txt = f"{Path(d).joinpath('premult').resolve().as_posix()}"
+                txt = f"{d / 'premult'}"
             elif self.files:
-                src = os.path.dirname(self.files[0])
-                txt = f"{Path(src).joinpath('premult').resolve().as_posix()}"
+                src = Path(self.files[0]).parent
+                txt = f"{src / 'premult'}"
             elif self.dir:
-                txt = f"{Path(self.dir).joinpath('premult').resolve().as_posix()}"
+                txt = f"{self.dir / 'premult'}"
             else:
                 txt = "Please select an input first"
         self.l_out.config(text=txt)
@@ -113,7 +137,7 @@ class PNGPremultApp:
         if self.files:
             return len(self.files)
         if self.dir:
-            return len([f for f in os.listdir(self.dir) if f.lower().endswith('.png') and not f.endswith('_premult.png')])
+            return len([f for f in self.dir.iterdir() if f.is_file() and f.suffix.lower() == '.png' and not f.name.endswith('_premult.png')])
         return 0
 
     def upd_btn_text(self):
@@ -121,36 +145,36 @@ class PNGPremultApp:
         self.b_proc.config(text=f"Process {n} Images" if n else "Process Images")
 
     def pick_files(self):
-        fs = filedialog.askopenfilenames(title="Select PNG Images", filetypes=[("PNG images", "*.png"), ("All images", "*.*")])
-        if fs:
-            self.files = list(fs)
-            self.dir = ""
-            self.l_files.config(text=f"{len(fs)} images selected")
+        files = filedialog.askopenfilenames(title="Select PNG Images", filetypes=[("PNG images", "*.png"), ("All images", "*.*")])
+        if files:
+            self.files = list(files)
+            self.dir = None
+            self.l_files.config(text=f"{len(files)} images selected")
             self.l_dir.config(text="No directory selected")
             self.reset()
-            self.log(f"Selected {len(fs)} images")
+            self.log(f"Selected {len(files)} images")
             self.set_output_disp()
             self.upd_btn_text()
         self.update_process_button_state()
 
     def pick_dir(self):
-        d = filedialog.askdirectory(title="Select Directory")
-        if d:
-            self.dir = d
+        dir_path = filedialog.askdirectory(title="Select Directory")
+        if dir_path:
+            self.dir = Path(dir_path)
             self.files = []
-            n = len([f for f in os.listdir(d) if f.lower().endswith('.png') and not f.endswith('_premult.png')])
-            self.l_dir.config(text=f"{d} ({n} images)")
+            n = self.img_count()
+            self.l_dir.config(text=f"{self.dir} ({n} images)")
             self.l_files.config(text="No images selected")
             self.reset()
-            self.log(f"Selected directory: {d} ({n} images)")
+            self.log(f"Selected directory: {self.dir} ({n} images)")
             self.upd_btn_text()
             self.set_output_disp()
         self.update_process_button_state()
 
     def pick_out(self):
-        d = filedialog.askdirectory(title="Select Output Directory")
-        if d:
-            self.output_dir = d
+        dir_path = filedialog.askdirectory(title="Select Output Directory")
+        if dir_path:
+            self.output_dir = Path(dir_path)
         self.set_output_disp()
 
     def reset(self):
@@ -174,32 +198,32 @@ class PNGPremultApp:
         arr = np.clip(arr, 0, 255).astype(np.uint8)
         return Image.fromarray(arr)
 
-    def out_path(self, fp):
-        input_path = Path(fp)
+    def out_path(self, file_path):
+        input_path = Path(file_path)
         if self.overwrite.get():
-            return input_path, input_path.name
-        d_path = Path(self.output_dir) if self.output_dir else input_path.parent if input_path.parent else Path('.')
-        pdir_path = d_path / "premult"
-        pdir_path.mkdir(parents=True, exist_ok=True)
+            return input_path
+        d_path = self.output_dir if self.output_dir else input_path.parent
+        premult_dir = d_path / "premult"
+        premult_dir.mkdir(parents=True, exist_ok=True)
         output_filename = input_path.stem + '.png'
-        return pdir_path / output_filename, output_filename
+        return premult_dir / output_filename
 
-    def proc_one(self, fp):
+    def proc_one(self, file_path):
         try:
-            with Image.open(fp) as img:
+            with Image.open(file_path) as img:
                 if img.format != 'PNG':
-                    self.log(f"✗ Error processing {Path(fp).name}: Not a PNG image.")
+                    self.log(f"✗ Error processing {Path(file_path).name}: Not a PNG image.")
                     return False
                 oimg = self.premult(img)
-                opath, disp = self.out_path(fp)
+                opath = self.out_path(file_path)
                 oimg.save(opath)
-                self.log(f"✓ Processed: {Path(fp).name}")
+                self.log(f"✓ Processed: {Path(file_path).name}")
                 return True
         except UnidentifiedImageError:
-            self.log(f"✗ Error processing {Path(fp).name}: Could not identify image file. It might be corrupted or not an image.")
+            self.log(f"✗ Error processing {Path(file_path).name}: Could not identify image file. It might be corrupted or not an image.")
             return False
         except Exception as e:
-            self.log(f"✗ Error processing {Path(fp).name}: {e}")
+            self.log(f"✗ Error processing {Path(file_path).name}: {e}")
             return False
 
     def proc_thread(self):
@@ -207,11 +231,19 @@ class PNGPremultApp:
             self.busy = True
             self.b_proc.config(state="disabled")
             self.progress.set(0)
-            fs = self.files or [os.path.join(self.dir, f) for f in os.listdir(self.dir) if f.lower().endswith('.png') and not f.endswith('_premult.png')]
+            if self.files:
+                fs = self.files
+            elif self.dir:
+                fs = [str(f) for f in self.dir.iterdir() 
+                      if f.is_file() and f.suffix.lower() == '.png' and not f.name.endswith('_premult.png')]
+            else:
+                fs = []
+                
             if not fs:
                 self.log("No images to process!")
                 self.stat("Ready")
                 return
+                
             n = len(fs)
             ok = 0
             self.log(f"Starting processing of {n} images...")
