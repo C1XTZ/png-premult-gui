@@ -7,7 +7,7 @@ A simple utility to apply alpha premultiplication to PNG files.
 ## Why?
 
 When scaling images, ImGui (used by CSP) applies linear filtering, which blends neighboring pixels.  
-If a PNG has semi transparent edges this can cause visible outlines, especially when the image is drawn smaller or larger than its original size.
+If a PNG has semi transparent edges this can cause visible outlines.
 
 Heres is a example of a 4000×4000 test image drawn at 300×300:  
 ![](./.github/img/example.png)
@@ -28,7 +28,7 @@ Inside the `png-premult-gui` folder, you have several options:
   - Windows Defender might flag and quarantine it.
 
 > [!IMPORTANT]  
-> The following steps require you to have **Python 3.12.x** installed. [Download Python](https://www.python.org/downloads/)
+> The following steps require you to have **Python 3.12.x** installed. [Download Python](https://www.python.org/downloads/)  
 > Building your own executable requires a compiler. [Read more](https://nuitka.net/user-documentation/user-manual.html#c-compiler)
 
 ### Option 2: Isolated Python Environment
