@@ -107,8 +107,11 @@ jobs:
           # Create temporary directory for zip contents
           New-Item -ItemType Directory -Path "release-temp" -Force
 
-          # Copy folders to temp directory
+          # Copy png-premult-gui folder excluding the exe
           Copy-Item -Path "png-premult-gui" -Destination "release-temp/" -Recurse
+          Remove-Item -Path "release-temp/png-premult-gui/png-premult-gui.exe" -Force -ErrorAction SilentlyContinue
+
+          # Copy pre-mult-test folder
           Copy-Item -Path "pre-mult-test" -Destination "release-temp/" -Recurse
 
           # Create zip file
@@ -133,13 +136,12 @@ jobs:
           body: |
             ${{ steps.changelog.outputs.ADDED_SECTION }}${{ steps.changelog.outputs.CHANGED_SECTION }}${{ steps.changelog.outputs.DIFF_SECTION }}
 
-            ### Test App:
-            The zip file includes a lua app, move the `pre-mult-test` folder to your `/assettocorsa/apps/lua` directory and open it ingame.
+            ## Usage
 
             ### Prebuilt Executable
 
-            - **Launch `png-premult-gui.exe`**
-              - Ready to use immediately but requires trusting a unsigned executable.
+            - **Download and Launch `png-premult-gui.exe`**
+              - Ready to use immediately but requires trusting an unsigned executable.
               - Windows Defender might flag and quarantine it.
 
             > [!IMPORTANT]  
@@ -148,14 +150,21 @@ jobs:
 
             ### Isolated Python Environment
 
-            - **Run `setup-venv.bat`** to create a Python environment.
-              - Automatically sets up a environment with all required packages for you.
-              - After setup, you can run `png-premult-gui.pyw` or build a executable with `build-exe.bat`
+            - Download `png-premult-gui.zip` and extract it.
+            - Open the `png-premult-gui` folder.
+            - Run `setup-venv.bat` to create a Python environment.
+              - After the setup, you can run `png-premult-gui.pyw` or build an executable with `build-exe.bat`
 
             ### System-wide Installation
 
-            - **To run `png-premult-gui.pyw`** install required packages with `pip install numpy pillow`
-            - **To build a executable with `build-exe.bat`** install required packages with `pip install numpy pillow nuitka`
+            - Download `png-premult-gui.zip` and extract it.
+            - Open the `png-premult-gui` folder and either:
+            - Run `png-premult-gui.pyw`
+              - Install required packages with `pip install numpy pillow` if needed.
+            - or build an executable with `build-exe.bat`
+              - Install required packages with `pip install numpy pillow nuitka` if needed.
+
+            ### Using the images in lua
 
             In your lua code, simply wrap your image drawing with `ui.beginPremultipliedAlphaTexture()` and `ui.endPremultipliedAlphaTexture()` when using the converted image:
 
@@ -164,5 +173,6 @@ jobs:
             ui.image(imgSource, imgSize)
             ui.endPremultipliedAlphaTexture()
             ```
+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
