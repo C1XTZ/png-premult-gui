@@ -1,0 +1,168 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          $PREVIOUS_TAG = git describe --tags --abbrev=0 HEAD^ 2>$null
+          $CURRENT_TAG = $env:GITHUB_REF -replace 'refs/tags/', ''
+
+          if (-not $PREVIOUS_TAG) {
+            Write-Host "No previous tag found, using all commits"
+            $COMMITS = git log --oneline --pretty=format:"%h: %s"
+            $DIFF_SECTION = ""
+          } else {
+            Write-Host "Previous tag: $PREVIOUS_TAG"
+            Write-Host "Current tag: $CURRENT_TAG"
+            $COMMITS = git log --oneline --pretty=format:"%h: %s" "$PREVIOUS_TAG..HEAD"
+            $DIFF_SECTION = "## Compare all changes:`n[Compare $PREVIOUS_TAG...$CURRENT_TAG](https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...$CURRENT_TAG)`n"
+          }
+
+          $ADDED = ""
+          $CHANGED = ""
+
+          foreach ($commit in $COMMITS) {
+            if ($commit -like "*add:*") {
+              $ITEM = $commit -replace "^[^:]+: add: ", ""
+              $ADDED += "- $ITEM`n"
+            } elseif ($commit -like "*chg:*") {
+              $ITEM = $commit -replace "^[^:]+: chg: ", ""
+              $CHANGED += "- $ITEM`n"
+            }
+          }
+
+          $ADDED_SECTION = ""
+          $CHANGED_SECTION = ""
+
+          if ($ADDED.Trim()) {
+            $ADDED_SECTION = "## Added:`n$ADDED`n"
+          }
+
+          if ($CHANGED.Trim()) {
+            $CHANGED_SECTION = "## Changes:`n$CHANGED`n"
+          }
+
+          echo "ADDED_SECTION<<EOF" >> $env:GITHUB_OUTPUT
+          echo $ADDED_SECTION >> $env:GITHUB_OUTPUT
+          echo "EOF" >> $env:GITHUB_OUTPUT
+
+          echo "CHANGED_SECTION<<EOF" >> $env:GITHUB_OUTPUT
+          echo $CHANGED_SECTION >> $env:GITHUB_OUTPUT
+          echo "EOF" >> $env:GITHUB_OUTPUT
+
+          echo "DIFF_SECTION<<EOF" >> $env:GITHUB_OUTPUT
+          echo $DIFF_SECTION >> $env:GITHUB_OUTPUT
+          echo "EOF" >> $env:GITHUB_OUTPUT
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install nuitka numpy pillow
+
+      - name: Build executable with Nuitka
+        working-directory: ./png-premult-gui
+        run: |
+          nuitka `
+            "png-premult-gui.pyw" `
+            --onefile `
+            --windows-icon-from-ico=icon.ico `
+            --windows-console-mode=disable `
+            --enable-plugin=tk-inter `
+            --include-data-file=icon.ico=icon.ico `
+            --lto=yes `
+            --assume-yes-for-downloads `
+            --remove-output `
+            --nofollow-import-to=pytest,test,unittest,doctest `
+            --nofollow-import-to=pdb,pydoc,calendar,email `
+            --nofollow-import-to=xml.etree,xml.dom,xml.sax `
+            --nofollow-import-to=multiprocessing,concurrent.futures `
+            --prefer-source-code `
+            --python-flag=-O `
+            --python-flag=isolated `
+            --jobs=0
+
+      - name: Create release zip
+        run: |
+          # Create temporary directory for zip contents
+          New-Item -ItemType Directory -Path "release-temp" -Force
+
+          # Copy folders to temp directory
+          Copy-Item -Path "png-premult-gui" -Destination "release-temp/" -Recurse
+          Copy-Item -Path "pre-mult-test" -Destination "release-temp/" -Recurse
+
+          # Create zip file
+          Compress-Archive -Path "release-temp/*" -DestinationPath "png-premult-gui.zip"
+
+      - name: Get tag name and repo name
+        id: get_info
+        run: |
+          $tag = $env:GITHUB_REF -replace 'refs/tags/', ''
+          $repo = $env:GITHUB_REPOSITORY -split '/' | Select-Object -Last 1
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+          echo "repo=$repo" >> $env:GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_info.outputs.tag }}
+          name: ${{ steps.get_info.outputs.repo }} ${{ steps.get_info.outputs.tag }}
+          files: |
+            png-premult-gui.zip
+            png-premult-gui/png-premult-gui.exe
+          body: |
+            ${{ steps.changelog.outputs.ADDED_SECTION }}${{ steps.changelog.outputs.CHANGED_SECTION }}${{ steps.changelog.outputs.DIFF_SECTION }}
+
+            ### Test App:
+            The zip file includes a lua app, move the `pre-mult-test` folder to your `/assettocorsa/apps/lua` directory and open it ingame.
+
+            ### Prebuilt Executable
+
+            - **Launch `png-premult-gui.exe`**
+              - Ready to use immediately but requires trusting a unsigned executable.
+              - Windows Defender might flag and quarantine it.
+
+            > [!IMPORTANT]  
+            > The following steps require you to have **Python 3.12.x** installed. [Download Python](https://www.python.org/downloads/)  
+            > Building your own executable requires a compiler. [Read more](https://nuitka.net/user-documentation/user-manual.html#c-compiler)
+
+            ### Isolated Python Environment
+
+            - **Run `setup-venv.bat`** to create a Python environment.
+              - Automatically sets up a environment with all required packages for you.
+              - After setup, you can run `png-premult-gui.pyw` or build a executable with `build-exe.bat`
+
+            ### System-wide Installation
+
+            - **To run `png-premult-gui.pyw`** install required packages with `pip install numpy pillow`
+            - **To build a executable with `build-exe.bat`** install required packages with `pip install numpy pillow nuitka`
+
+            In your lua code, simply wrap your image drawing with `ui.beginPremultipliedAlphaTexture()` and `ui.endPremultipliedAlphaTexture()` when using the converted image:
+
+            ```lua
+            ui.beginPremultipliedAlphaTexture()
+            ui.image(imgSource, imgSize)
+            ui.endPremultipliedAlphaTexture()
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
