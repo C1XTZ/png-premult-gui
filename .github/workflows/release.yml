@@ -111,8 +111,8 @@ jobs:
           Copy-Item -Path "png-premult-gui" -Destination "release-temp/" -Recurse
           Remove-Item -Path "release-temp/png-premult-gui/png-premult-gui.exe" -Force -ErrorAction SilentlyContinue
 
-          # Copy pre-mult-test folder
-          Copy-Item -Path "pre-mult-test" -Destination "release-temp/" -Recurse
+          # Copy xtz-premult-test folder
+          Copy-Item -Path "xtz-premult-test" -Destination "release-temp/" -Recurse
 
           # Create zip file
           Compress-Archive -Path "release-temp/*" -DestinationPath "png-premult-gui.zip"

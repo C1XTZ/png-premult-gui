@@ -12,8 +12,16 @@ If a PNG has semi transparent edges this can cause visible outlines.
 Here is a example of a 4000×4000 test image drawn at 300×300:  
 ![](./.github/img/example.png)
 
-The full size test images and a demo app to try it ingame are included in the `png-premult-gui.zip`.  
-To use the app, move the `pre-mult-test` folder to your `/assettocorsa/apps/lua` directory and open it ingame.
+### Test App
+
+A demo app with test images is included in the `png-premult-gui.zip`.  
+To use the app please do the following:
+
+1. Move the `pre-mult-test` folder to your `/assettocorsa/apps/lua` directory.
+2. Convert the two images in the `images` folder with the tool.
+   - Make sure you **do not** overwrite the original images or change the output location.
+3. Open the app ingame via the app sidebar and move it over light/dark backgrounds.
+   - I recommend the kunos drift track, it has white truck trailers you can use as background. Set weather to `Clear` for best results.
 
 ## Usage
 
